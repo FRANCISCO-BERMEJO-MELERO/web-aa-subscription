@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useWalletClient, usePublicClient } from 'wagmi'
 import { parseEther, formatEther } from 'viem'
 
@@ -12,6 +12,13 @@ const BILLING_LOOKUP = BILLING_FREQUENCIES.reduce((acc, item) => {
     acc[item.value] = item
     return acc
 }, {})
+
+const formatPaidAmount = (value) => {
+    if (value >= 1) {
+        return value.toFixed(3).replace(/\.?0+$/, '')
+    }
+    return value.toFixed(6).replace(/\.?0+$/, '')
+}
 
 export default function SubscriptionManager({ smartAccountAddress, eoaAddress, deploymentInfo }) {
     const { data: walletClient } = useWalletClient()
@@ -32,6 +39,17 @@ export default function SubscriptionManager({ smartAccountAddress, eoaAddress, d
 
     const selectedPlanData = plans.find(plan => plan.id === selectedPlan)
     const currentFrequency = BILLING_LOOKUP[selectedFrequency] || BILLING_LOOKUP.hour
+
+    const paymentTotals = useMemo(() => {
+        return paymentHistory.reduce((acc, payment) => {
+            const [rawAmount, token] = payment.amount.split(' ')
+            const numeric = parseFloat(rawAmount)
+            if (!Number.isNaN(numeric) && token) {
+                acc[token] = (acc[token] || 0) + numeric
+            }
+            return acc
+        }, {})
+    }, [paymentHistory])
 
     const subscribe = async (planId) => {
         setSubscribing(true)
@@ -171,6 +189,28 @@ export default function SubscriptionManager({ smartAccountAddress, eoaAddress, d
                                 <div style={{ fontWeight: 600 }}>{activeSubscription.token}</div>
                             </div>
                         </div>
+                        {Object.keys(paymentTotals).length > 0 && (
+                            <div style={{ marginBottom: 'var(--spacing-lg)' }}>
+                                <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: 'var(--spacing-sm)' }}>
+                                    Total pagado
+                                </div>
+                                <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
+                                    {Object.entries(paymentTotals).map(([token, total]) => (
+                                        <div
+                                            key={token}
+                                            style={{
+                                                padding: 'var(--spacing-sm) var(--spacing-md)',
+                                                background: 'var(--bg-tertiary)',
+                                                borderRadius: 'var(--radius-md)',
+                                                fontWeight: 600
+                                            }}
+                                        >
+                                            {formatPaidAmount(total)} {token}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         <div className="flex gap-md" style={{ flexWrap: 'wrap' }}>
                             <button
