@@ -2,6 +2,17 @@ import { useState, useEffect } from 'react'
 import { useWalletClient, usePublicClient } from 'wagmi'
 import { parseEther, formatEther } from 'viem'
 
+const BILLING_FREQUENCIES = [
+    { value: 'minute', label: 'Minuto', description: 'Cada minuto', intervalText: '1 minuto', durationMs: 60 * 1000 },
+    { value: 'hour', label: 'Hora', description: 'Cada hora', intervalText: '1 hora', durationMs: 60 * 60 * 1000 },
+    { value: 'day', label: 'Día', description: 'Cada día', intervalText: '1 día', durationMs: 24 * 60 * 60 * 1000 }
+]
+
+const BILLING_LOOKUP = BILLING_FREQUENCIES.reduce((acc, item) => {
+    acc[item.value] = item
+    return acc
+}, {})
+
 export default function SubscriptionManager({ smartAccountAddress, eoaAddress, deploymentInfo }) {
     const { data: walletClient } = useWalletClient()
     const publicClient = usePublicClient()
@@ -16,7 +27,11 @@ export default function SubscriptionManager({ smartAccountAddress, eoaAddress, d
     const [subscribing, setSubscribing] = useState(false)
     const [cancelling, setCancelling] = useState(false)
     const [selectedPlan, setSelectedPlan] = useState(null)
+    const [selectedFrequency, setSelectedFrequency] = useState('hour')
     const [paymentHistory, setPaymentHistory] = useState([])
+
+    const selectedPlanData = plans.find(plan => plan.id === selectedPlan)
+    const currentFrequency = BILLING_LOOKUP[selectedFrequency] || BILLING_LOOKUP.hour
 
     const subscribe = async (planId) => {
         setSubscribing(true)
@@ -25,8 +40,7 @@ export default function SubscriptionManager({ smartAccountAddress, eoaAddress, d
             // 1. Call the subscription service contract to subscribe
             // 2. Create a session key with payment policies
             // 3. Install the subscription module if not already installed
-
-            console.log('Subscribing to plan:', planId)
+            console.log('Subscribing to plan:', planId, 'with frequency:', currentFrequency.value)
 
             // Simulate subscription
             await new Promise(resolve => setTimeout(resolve, 2000))
@@ -34,12 +48,16 @@ export default function SubscriptionManager({ smartAccountAddress, eoaAddress, d
             const plan = plans.find(p => p.id === planId)
             setActiveSubscription({
                 ...plan,
+                interval: currentFrequency.intervalText,
+                frequencyKey: currentFrequency.value,
+                frequencyMs: currentFrequency.durationMs,
                 startTime: new Date(),
-                nextPayment: new Date(Date.now() + 3600000), // 1 hour from now
+                nextPayment: new Date(Date.now() + currentFrequency.durationMs),
                 status: 'active'
             })
 
             setSelectedPlan(null)
+            setSelectedFrequency('hour')
 
         } catch (error) {
             console.error('Error subscribing:', error)
@@ -86,7 +104,7 @@ export default function SubscriptionManager({ smartAccountAddress, eoaAddress, d
             // Update next payment time
             setActiveSubscription({
                 ...activeSubscription,
-                nextPayment: new Date(Date.now() + 3600000)
+                nextPayment: new Date(Date.now() + (activeSubscription?.frequencyMs || BILLING_LOOKUP.hour.durationMs))
             })
 
         } catch (error) {
@@ -209,7 +227,7 @@ export default function SubscriptionManager({ smartAccountAddress, eoaAddress, d
                 <div>
                     <h2>Available Subscription Plans</h2>
                     <p style={{ marginBottom: 'var(--spacing-xl)' }}>
-                        Choose a plan to start your subscription with automated hourly payments
+                        Elige un plan y selecciona la frecuencia de cobro que prefieras para activar los pagos automáticos
                     </p>
 
                     <div style={{
@@ -241,7 +259,7 @@ export default function SubscriptionManager({ smartAccountAddress, eoaAddress, d
                                     {plan.price}
                                 </div>
                                 <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: 'var(--spacing-md)' }}>
-                                    Billed every {plan.interval}
+                                    Ejemplo de intervalo: cada {plan.interval}
                                 </div>
                                 <div style={{
                                     padding: 'var(--spacing-sm)',
@@ -255,14 +273,32 @@ export default function SubscriptionManager({ smartAccountAddress, eoaAddress, d
                         ))}
                     </div>
 
-                    {selectedPlan !== null && (
+                    {selectedPlanData && (
                         <div className="card" style={{ background: 'rgba(99, 102, 241, 0.05)' }}>
                             <h3>Subscription Details</h3>
                             <p>
-                                You're about to subscribe to <strong>{plans[selectedPlan].name}</strong>.
-                                This will create a session key with payment policies allowing automated payments of{' '}
-                                <strong>{plans[selectedPlan].price}</strong> every <strong>{plans[selectedPlan].interval}</strong>.
+                                Estás a punto de suscribirte a <strong>{selectedPlanData.name}</strong>.
+                                Esto creará una session key con políticas que permiten pagos automáticos de{' '}
+                                <strong>{selectedPlanData.price}</strong> {currentFrequency.description.toLowerCase()}.
                             </p>
+                            <div style={{ marginBottom: 'var(--spacing-lg)' }}>
+                                <div style={{ fontSize: '0.875rem', marginBottom: 'var(--spacing-sm)' }}>
+                                    <strong>Frecuencia de cobro</strong>
+                                </div>
+                                <div className="flex gap-md" style={{ flexWrap: 'wrap' }}>
+                                    {BILLING_FREQUENCIES.map(freq => (
+                                        <button
+                                            key={freq.value}
+                                            type="button"
+                                            onClick={() => setSelectedFrequency(freq.value)}
+                                            className={selectedFrequency === freq.value ? 'btn-primary' : 'btn-secondary'}
+                                            style={{ flex: '1 1 120px' }}
+                                        >
+                                            {freq.description}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                             <div style={{
                                 padding: 'var(--spacing-md)',
                                 background: 'var(--bg-tertiary)',
@@ -273,10 +309,10 @@ export default function SubscriptionManager({ smartAccountAddress, eoaAddress, d
                                     <strong>Session Key Policies:</strong>
                                 </div>
                                 <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                                    ✓ Max amount: {plans[selectedPlan].price}<br />
-                                    ✓ Interval: {plans[selectedPlan].interval}<br />
+                                    ✓ Max amount: {selectedPlanData.price}<br />
+                                    ✓ Interval: {currentFrequency.intervalText}<br />
                                     ✓ Recipient: Subscription Service Contract<br />
-                                    ✓ Token: {plans[selectedPlan].token}
+                                    ✓ Token: {selectedPlanData.token}
                                 </div>
                             </div>
                             <button
