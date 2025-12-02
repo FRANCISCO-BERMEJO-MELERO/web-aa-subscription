@@ -98,7 +98,7 @@ export default function SubscriptionManager({ smartAccountAddress, eoaAddress, d
     return (
         <div className="fade-in" style={{ maxWidth: '1200px', margin: '0 auto' }}>
             {/* Smart Account Info */}
-            <div className="card-glass mb-xl">
+            <div className="card-glass mb-xl ">
                 <div className="flex justify-between items-center" style={{ flexWrap: 'wrap', gap: 'var(--spacing-md)' }}>
                     <div>
                         <h3 style={{ margin: 0, marginBottom: 'var(--spacing-xs)' }}>Your Smart Account</h3>

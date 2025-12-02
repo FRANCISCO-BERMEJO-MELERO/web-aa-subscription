@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const { ethers } = require('ethers');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 app.use(cors());
@@ -13,8 +15,19 @@ const provider = new ethers.JsonRpcProvider('http://127.0.0.1:8545');
 const userOperations = [];
 let nonce = 0;
 
-// EntryPoint address (standard v0.7)
-const ENTRYPOINT_ADDRESS = '0x0000000071727De22E5E9d8BAf0edAc6f37da032';
+// Load EntryPoint address from deployment
+let ENTRYPOINT_ADDRESS = '0x5FbDB2315678afecb367f032d93F642f64180aa3'; // Default fallback
+
+try {
+    const deploymentPath = path.join(__dirname, '..', 'deployments', 'localhost.json');
+    if (fs.existsSync(deploymentPath)) {
+        const deployment = JSON.parse(fs.readFileSync(deploymentPath, 'utf8'));
+        ENTRYPOINT_ADDRESS = deployment.contracts.EntryPoint;
+        console.log('✅ Loaded EntryPoint from deployment:', ENTRYPOINT_ADDRESS);
+    }
+} catch (error) {
+    console.warn('⚠️  Could not load EntryPoint from deployment, using default');
+}
 
 /**
  * Mock Bundler - Simplified ERC-4337 Bundler for Testing
@@ -25,7 +38,7 @@ const ENTRYPOINT_ADDRESS = '0x0000000071727De22E5E9d8BAf0edAc6f37da032';
 
 // Health check
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok', bundler: 'mock-bundler-v1' });
+    res.json({ status: 'ok', bundler: 'mock-bundler-v1', entryPoint: ENTRYPOINT_ADDRESS });
 });
 
 // Get supported EntryPoints

@@ -23,7 +23,7 @@ export async function loadDeploymentInfo() {
         const response = await fetch('/deployments/localhost.json')
         if (response.ok) {
             const data = await response.json()
-            return data.contracts
+            return data  // Return full deployment info, not just contracts
         }
     } catch (error) {
         console.warn('Could not load deployment info:', error)

@@ -9,7 +9,8 @@
     "setup-aa": "hardhat run scripts/setup-aa-infrastructure.js --network localhost",
     "test": "hardhat test",
     "bundler": "cd bundler && node mock-bundler.js",
-    "dev": "npm run dev --prefix web"
+    "dev": "npm run dev --prefix web",
+    "predict": "hardhat run scripts/predict-account.js --network localhost"
   },
   "keywords": [
     "ERC-4337",

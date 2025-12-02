@@ -3,10 +3,30 @@ const fs = require("fs");
 const path = require("path");
 
 async function main() {
-    console.log("🚀 Deploying contracts...\n");
+    console.log("🚀 Deploying ERC-4337 Smart Account Infrastructure...\n");
+
+    // Deploy EntryPoint v0.7
+    console.log("📝 Deploying EntryPoint...");
+    const EntryPoint = await hre.ethers.getContractFactory("EntryPoint");
+    const entryPoint = await EntryPoint.deploy();
+    await entryPoint.waitForDeployment();
+    const entryPointAddress = await entryPoint.getAddress();
+    console.log("✅ EntryPoint deployed to:", entryPointAddress);
+
+    // Deploy SimpleAccountFactory
+    console.log("\n📝 Deploying SimpleAccountFactory...");
+    const SimpleAccountFactory = await hre.ethers.getContractFactory("SimpleAccountFactory");
+    const accountFactory = await SimpleAccountFactory.deploy(entryPointAddress);
+    await accountFactory.waitForDeployment();
+    const accountFactoryAddress = await accountFactory.getAddress();
+    console.log("✅ SimpleAccountFactory deployed to:", accountFactoryAddress);
+
+    // Get account implementation address
+    const accountImplementation = await accountFactory.accountImplementation();
+    console.log("✅ SimpleAccount implementation:", accountImplementation);
 
     // Deploy MockERC20 for testing
-    console.log("📝 Deploying MockERC20...");
+    console.log("\n📝 Deploying MockERC20...");
     const MockERC20 = await hre.ethers.getContractFactory("MockERC20");
     const mockToken = await MockERC20.deploy();
     await mockToken.waitForDeployment();
@@ -67,10 +87,14 @@ async function main() {
         network: hre.network.name,
         chainId: (await hre.ethers.provider.getNetwork()).chainId.toString(),
         contracts: {
+            EntryPoint: entryPointAddress,
+            SimpleAccountFactory: accountFactoryAddress,
+            SimpleAccountImplementation: accountImplementation,
             MockERC20: mockTokenAddress,
             SubscriptionModule: subscriptionModuleAddress,
             SubscriptionService: subscriptionServiceAddress,
         },
+        bundlerUrl: "http://localhost:4337",
         plans: [
             {
                 id: 0,
@@ -102,14 +126,30 @@ async function main() {
     const deploymentPath = path.join(deploymentsDir, `${hre.network.name}.json`);
     fs.writeFileSync(deploymentPath, JSON.stringify(deploymentInfo, null, 2));
 
-    console.log("\n📄 Deployment info saved to:", deploymentPath);
+    // Also copy to web/public for frontend access
+    const webDeploymentsDir = path.join(__dirname, "..", "web", "public", "deployments");
+    if (!fs.existsSync(webDeploymentsDir)) {
+        fs.mkdirSync(webDeploymentsDir, { recursive: true });
+    }
+    const webDeploymentPath = path.join(webDeploymentsDir, `${hre.network.name}.json`);
+    fs.writeFileSync(webDeploymentPath, JSON.stringify(deploymentInfo, null, 2));
+
+    console.log("\n📄 Deployment info saved to:");
+    console.log("   -", deploymentPath);
+    console.log("   -", webDeploymentPath);
+
     console.log("\n✨ Deployment complete!\n");
-    console.log("Contract Addresses:");
-    console.log("-------------------");
+    console.log("ERC-4337 Infrastructure:");
+    console.log("------------------------");
+    console.log("EntryPoint:", entryPointAddress);
+    console.log("SimpleAccountFactory:", accountFactoryAddress);
+    console.log("SimpleAccount Implementation:", accountImplementation);
+    console.log("\nApplication Contracts:");
+    console.log("---------------------");
     console.log("MockERC20:", mockTokenAddress);
     console.log("SubscriptionModule:", subscriptionModuleAddress);
     console.log("SubscriptionService:", subscriptionServiceAddress);
-    console.log("\nUpdate your .env file with these addresses!");
+    console.log("\n🎉 Ready to create smart accounts!");
 }
 
 main()
@@ -118,3 +158,4 @@ main()
         console.error(error);
         process.exit(1);
     });
+

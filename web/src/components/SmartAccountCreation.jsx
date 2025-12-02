@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useWalletClient, useSwitchChain } from 'wagmi'
-import { createPublicClient, http, parseEther } from 'viem'
+import { createPublicClient, http } from 'viem'
 import { hardhat } from '../config/chains'
+import { getSmartAccountAddress, deploySmartAccount, isAccountDeployed } from '../config/smartAccount'
 
 export default function SmartAccountCreation({ eoaAddress, deploymentInfo, onAccountCreated }) {
     const { data: walletClient, isLoading: isLoadingWallet } = useWalletClient({ chainId: hardhat.id })
@@ -10,11 +11,44 @@ export default function SmartAccountCreation({ eoaAddress, deploymentInfo, onAcc
     const [error, setError] = useState(null)
     const [txHash, setTxHash] = useState(null)
     const [switchingChain, setSwitchingChain] = useState(false)
+    const [smartAccountAddress, setSmartAccountAddress] = useState(null)
+    const [isDeployed, setIsDeployed] = useState(false)
 
     const publicClient = createPublicClient({
         chain: hardhat,
         transport: http()
     })
+
+    // Calculate smart account address on component mount
+    useEffect(() => {
+        if (eoaAddress && deploymentInfo?.contracts?.SimpleAccountFactory) {
+            calculateAccountAddress()
+        }
+    }, [eoaAddress, deploymentInfo])
+
+    const calculateAccountAddress = async () => {
+        try {
+            const salt = 0 // Using salt 0 for simplicity - could be customizable
+            const address = await getSmartAccountAddress(
+                eoaAddress,
+                salt,
+                deploymentInfo.contracts.SimpleAccountFactory,
+                publicClient
+            )
+            setSmartAccountAddress(address)
+
+            // Check if already deployed
+            const deployed = await isAccountDeployed(address, publicClient)
+            setIsDeployed(deployed)
+
+            if (deployed) {
+                // Account already exists, notify parent
+                onAccountCreated(address)
+            }
+        } catch (err) {
+            console.error('Error calculating account address:', err)
+        }
+    }
 
     const handleSwitchChain = async () => {
         setSwitchingChain(true)
@@ -35,34 +69,45 @@ export default function SmartAccountCreation({ eoaAddress, deploymentInfo, onAcc
             return
         }
 
+        if (isDeployed) {
+            setError('Smart account already deployed!')
+            onAccountCreated(smartAccountAddress)
+            return
+        }
+
         setCreating(true)
         setError(null)
 
         try {
-            // For this demo, we'll use a simple approach:
-            // The smart account address will be deterministically derived from the EOA
-            // In a production app, you would use ZeroDev SDK or similar to create the account
-
-            // Simulate smart account creation
-            // In reality, this would involve:
-            // 1. Creating a Kernel account with ZeroDev SDK
-            // 2. Deploying it via the bundler
-            // 3. Installing the subscription module
-
             console.log('Creating smart account for EOA:', eoaAddress)
-            console.log('Wallet client chain:', walletClient.chain)
+            console.log('Factory address:', deploymentInfo.contracts.SimpleAccountFactory)
 
-            // For demo purposes, we'll use a deterministic address based on EOA
-            // This is a simplified version - real implementation would use proper AA SDK
-            const smartAccountAddress = `0x${eoaAddress.slice(2, 10)}${'0'.repeat(32)}SA`
+            const salt = 0 // Using salt 0 for simplicity
 
-            // Simulate deployment transaction
-            await new Promise(resolve => setTimeout(resolve, 2000))
+            // Deploy the smart account using the factory
+            const hash = await deploySmartAccount(
+                eoaAddress,
+                salt,
+                deploymentInfo.contracts.SimpleAccountFactory,
+                walletClient
+            )
 
-            setTxHash('0x' + '1'.repeat(64)) // Mock tx hash
+            console.log('Deployment transaction hash:', hash)
+            setTxHash(hash)
 
-            console.log('Smart account created:', smartAccountAddress)
-            onAccountCreated(smartAccountAddress)
+            // Wait for transaction to be mined
+            const receipt = await publicClient.waitForTransactionReceipt({ hash })
+            console.log('Transaction mined:', receipt)
+
+            // Verify deployment
+            const deployed = await isAccountDeployed(smartAccountAddress, publicClient)
+            if (deployed) {
+                console.log('Smart account deployed successfully:', smartAccountAddress)
+                setIsDeployed(true)
+                onAccountCreated(smartAccountAddress)
+            } else {
+                throw new Error('Account deployment verification failed')
+            }
 
         } catch (err) {
             console.error('Error creating smart account:', err)
@@ -96,15 +141,50 @@ export default function SmartAccountCreation({ eoaAddress, deploymentInfo, onAcc
                 </div>
             </div>
 
+            {smartAccountAddress && (
+                <div className="card-glass mb-lg">
+                    <div className="flex justify-between items-center" style={{ marginBottom: 'var(--spacing-sm)' }}>
+                        <h3 style={{ margin: 0 }}>Your Smart Account Address</h3>
+                        {isDeployed && (
+                            <span style={{
+                                background: 'rgba(16, 185, 129, 0.2)',
+                                color: 'var(--success)',
+                                padding: 'var(--spacing-xs) var(--spacing-sm)',
+                                borderRadius: 'var(--radius-sm)',
+                                fontSize: '0.75rem',
+                                fontWeight: 'bold'
+                            }}>
+                                ✓ DEPLOYED
+                            </span>
+                        )}
+                    </div>
+                    <div style={{
+                        background: 'var(--bg-tertiary)',
+                        padding: 'var(--spacing-md)',
+                        borderRadius: 'var(--radius-md)',
+                        fontFamily: 'monospace',
+                        fontSize: '0.875rem',
+                        wordBreak: 'break-all'
+                    }}>
+                        {smartAccountAddress}
+                    </div>
+                    {!isDeployed && (
+                        <p style={{ margin: '0.5rem 0 0', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                            💡 This is your counterfactual address - it will be deployed when you create the account
+                        </p>
+                    )}
+                </div>
+            )}
+
             <div className="card mb-lg">
                 <h3>What happens next?</h3>
                 <div style={{ display: 'grid', gap: 'var(--spacing-md)' }}>
                     <div className="flex gap-md">
                         <div style={{ fontSize: '1.5rem' }}>1️⃣</div>
                         <div>
-                            <strong>Create Smart Account</strong>
+                            <strong>Deploy Smart Account</strong>
                             <p style={{ margin: 0, fontSize: '0.875rem' }}>
-                                Deploy an ERC-4337 compliant smart account controlled by your EOA
+                                Deploy an ERC-4337 compliant smart account using SimpleAccountFactory
                             </p>
                         </div>
                     </div>
@@ -210,8 +290,7 @@ export default function SmartAccountCreation({ eoaAddress, deploymentInfo, onAcc
                 border: '1px solid rgba(99, 102, 241, 0.3)'
             }}>
                 <p style={{ margin: 0, fontSize: '0.875rem' }}>
-                    💡 <strong>Note:</strong> This demo uses a simplified smart account creation flow.
-                    In production, this would integrate with ZeroDev SDK and Pimlico bundler for full ERC-4337 support.
+                    💡 <strong>Real ERC-4337 Implementation:</strong> This uses actual EntryPoint and SimpleAccountFactory contracts for authentic Account Abstraction testing on your local Hardhat network.
                 </p>
             </div>
         </div>
