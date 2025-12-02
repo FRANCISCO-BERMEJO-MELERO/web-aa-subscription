@@ -1,0 +1,31 @@
+{
+  "name": "aa-dapp-sergio",
+  "version": "1.0.0",
+  "description": "Smart Account Subscription System with ERC-4337 and ERC-7579",
+  "scripts": {
+    "node": "hardhat node",
+    "compile": "hardhat compile",
+    "deploy": "hardhat run scripts/deploy.js --network localhost",
+    "setup-aa": "hardhat run scripts/setup-aa-infrastructure.js --network localhost",
+    "test": "hardhat test",
+    "bundler": "cd bundler && node mock-bundler.js",
+    "dev": "npm run dev --prefix web"
+  },
+  "keywords": [
+    "ERC-4337",
+    "ERC-7579",
+    "account-abstraction",
+    "smart-account",
+    "subscription"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "hardhat": "^2.19.4"
+  },
+  "dependencies": {
+    "@account-abstraction/contracts": "^0.7.0",
+    "@openzeppelin/contracts": "^5.0.1"
+  }
+}

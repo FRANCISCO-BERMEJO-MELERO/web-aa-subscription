@@ -1,0 +1,30 @@
+{
+  "network": "localhost",
+  "chainId": "31337",
+  "contracts": {
+    "MockERC20": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+    "SubscriptionModule": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+    "SubscriptionService": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"
+  },
+  "plans": [
+    {
+      "id": 0,
+      "name": "Basic Plan",
+      "price": "0.001 ETH",
+      "interval": "1 hour"
+    },
+    {
+      "id": 1,
+      "name": "Premium Plan",
+      "price": "0.002 ETH",
+      "interval": "1 hour"
+    },
+    {
+      "id": 2,
+      "name": "Token Plan",
+      "price": "10 USDC",
+      "interval": "1 hour"
+    }
+  ],
+  "timestamp": "2025-12-02T08:13:54.017Z"
+}

@@ -1,0 +1,14 @@
+{
+    "name": "mock-bundler",
+    "version": "1.0.0",
+    "description": "Mock ERC-4337 Bundler for local testing",
+    "main": "mock-bundler.js",
+    "scripts": {
+        "start": "node mock-bundler.js"
+    },
+    "dependencies": {
+        "express": "^4.18.2",
+        "cors": "^2.8.5",
+        "ethers": "^6.9.0"
+    }
+}

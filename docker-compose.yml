@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:latest
+    container_name: anvil-node
+    ports:
+      - "8545:8545"
+    command: >
+      anvil
+      --host 0.0.0.0
+      --port 8545
+      --chain-id 31337
+      --block-time 2
+      --accounts 10
+      --balance 10000
+    networks:
+      - aa-network
+    healthcheck:
+      test: ["CMD", "cast", "client"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+networks:
+  aa-network:
+    driver: bridge
